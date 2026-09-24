@@ -12,3 +12,22 @@ export const getMessages = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+export const createMessage = async (req: Request, res: Response) => {
+  try {
+    const { username, message } = req.body;
+
+    const newMessage = await Message.create({
+      username,
+      message,
+      createdAt: new Date()
+    });
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to create message"
+    });
+  }
+};
