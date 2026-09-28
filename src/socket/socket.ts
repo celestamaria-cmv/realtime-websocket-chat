@@ -12,7 +12,7 @@ export const setupSocket = (io: Server) => {
     socket.on("send-message", (message) => {
       console.log("Message received:", message);
 
-      io.emit("receive-message", message);
+      socket.broadcast.emit("receive-message", message);
     });
 
     socket.on("disconnect", () => {

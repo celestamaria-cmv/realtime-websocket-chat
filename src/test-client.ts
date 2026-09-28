@@ -1,5 +1,5 @@
 import { io } from "socket.io-client";
-
+const username = process.argv[2] || "Alice";
 const socket = io("http://localhost:5001");
 
 socket.on("connect", () => {
@@ -10,11 +10,7 @@ socket.on("connect", () => {
   });
   console.log("About to send message...");
   socket.emit("send-message", {
-    username: "Alice",
-    message: "Hello!"
-  });
+  username: username,
+  message: "Hello from " + username + "!"
 });
-
-setTimeout(() => {
-  socket.disconnect();
-}, 5000);
+});
