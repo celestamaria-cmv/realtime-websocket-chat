@@ -12,8 +12,14 @@ export const setupSocket = (io: Server) => {
       // Store username using socket ID
       users.set(socket.id, username);
 
-      // Tell everyone except the person who joined
+      // Tell other users that someone joined
       socket.broadcast.emit("user-joined", username);
+
+      // Get all currently online usernames
+      const onlineUsers = Array.from(users.values());
+
+      // Send the current online-user list to everyone
+      io.emit("online-users", onlineUsers);
     });
 
     socket.onAny((event, ...args) => {
@@ -27,19 +33,25 @@ export const setupSocket = (io: Server) => {
     });
 
     socket.on("disconnect", () => {
-      // Find the username using the socket ID
+      // Find the username
       const username = users.get(socket.id);
 
       console.log("Disconnected socket:", socket.id);
       console.log("Username who left:", username);
 
-      // Remove the user from the Map
+      // Remove the user
       users.delete(socket.id);
 
-      // Tell the other users
+      // Tell other users that someone left
       socket.broadcast.emit("user-left", username);
 
-      console.log(`Sent user-left event for: ${username}`);
+      // Get updated online users
+      const onlineUsers = Array.from(users.values());
+
+      // Send updated list to everyone
+      io.emit("online-users", onlineUsers);
+
+      console.log("Online users:", onlineUsers);
     });
   });
 };

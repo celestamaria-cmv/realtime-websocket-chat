@@ -1,4 +1,3 @@
-
 import { io } from "socket.io-client";
 
 const username = process.argv[2] || "Alice";
@@ -18,6 +17,10 @@ socket.on("connect", () => {
 
   socket.on("user-left", (username) => {
     console.log(`🔴 ${username} left the chat`);
+  });
+
+  socket.on("online-users", (users) => {
+    console.log("🟢 Online users:", users);
   });
 
   // Tell the server our username
