@@ -9,16 +9,12 @@ export const setupSocket = (io: Server) => {
     socket.on("join-chat", (username) => {
       console.log(`${username} joined the chat`);
 
-      // Store username using socket ID
       users.set(socket.id, username);
 
-      // Tell other users that someone joined
       socket.broadcast.emit("user-joined", username);
 
-      // Get all currently online usernames
       const onlineUsers = Array.from(users.values());
 
-      // Send the current online-user list to everyone
       io.emit("online-users", onlineUsers);
     });
 
@@ -32,23 +28,32 @@ export const setupSocket = (io: Server) => {
       socket.broadcast.emit("receive-message", message);
     });
 
+    // Day 7: A user starts typing
+    socket.on("typing", () => {
+      const username = users.get(socket.id);
+
+      socket.broadcast.emit("user-typing", username);
+    });
+
+    // Day 7: A user stops typing
+    socket.on("stop-typing", () => {
+      const username = users.get(socket.id);
+
+      socket.broadcast.emit("user-stop-typing", username);
+    });
+
     socket.on("disconnect", () => {
-      // Find the username
       const username = users.get(socket.id);
 
       console.log("Disconnected socket:", socket.id);
       console.log("Username who left:", username);
 
-      // Remove the user
       users.delete(socket.id);
 
-      // Tell other users that someone left
       socket.broadcast.emit("user-left", username);
 
-      // Get updated online users
       const onlineUsers = Array.from(users.values());
 
-      // Send updated list to everyone
       io.emit("online-users", onlineUsers);
 
       console.log("Online users:", onlineUsers);
