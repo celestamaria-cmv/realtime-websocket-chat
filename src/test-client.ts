@@ -5,57 +5,104 @@ const username = process.argv[2] || "Alice";
 const socket = io("http://localhost:5001");
 
 let typingTimer: ReturnType<typeof setTimeout>;
-
-// Track whether the user is already typing
 let isTyping = false;
 
-socket.on("connect", () => {
+interface ChatMessage {
+  _id?: string;
+  username: string;
+  message: string;
+  createdAt?: string;
+}
+
+interface MessageError {
+  message: string;
+}
+
+socket.on("connect", async () => {
   console.log("Connected to server:", socket.id);
 
-  socket.on("receive-message", (message) => {
+  // Receive new real-time messages
+  socket.on("receive-message", (message: ChatMessage) => {
     console.log("Received message:", message);
   });
 
-  socket.on("user-joined", (username) => {
-    console.log(`🔵 ${username} joined the chat`);
+  // Receive join and leave notifications
+  socket.on("user-joined", (joinedUsername: string) => {
+    console.log(`🔵 ${joinedUsername} joined the chat`);
   });
 
-  socket.on("user-left", (username) => {
-    console.log(`🔴 ${username} left the chat`);
+  socket.on("user-left", (leftUsername: string) => {
+    console.log(`🔴 ${leftUsername} left the chat`);
   });
 
-  socket.on("online-users", (users) => {
+  // Receive the online-user list
+  socket.on("online-users", (users: string[]) => {
     console.log("🟢 Online users:", users);
   });
 
-  socket.on("user-typing", (username) => {
-    console.log(`💬 ${username} is typing...`);
+  // Receive typing notifications
+  socket.on("typing", (typingUsername: string) => {
+    console.log(`💬 ${typingUsername} is typing...`);
   });
 
-  socket.on("user-stop-typing", (username) => {
-    console.log(`💬 ${username} stopped typing.`);
+  socket.on("stop-typing", (typingUsername: string) => {
+    console.log(`💬 ${typingUsername} stopped typing.`);
   });
 
+  // Receive errors when saving messages fails
+  socket.on("message-error", (error: MessageError) => {
+    console.error("Message error:", error.message);
+  });
+
+  // Tell the server our username
   socket.emit("join-chat", username);
 
+  // Load previously saved messages
+  try {
+    const response = await fetch(
+      "http://localhost:5001/api/messages"
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    const messages: ChatMessage[] = await response.json();
+
+    console.log("\n📚 Previous chat history:");
+
+    if (messages.length === 0) {
+      console.log("No previous messages.");
+    } else {
+      messages.forEach((message) => {
+        console.log(
+          `[History] ${message.username}: ${message.message}`
+        );
+      });
+    }
+
+    console.log("📚 End of chat history\n");
+  } catch (error) {
+    console.error("Failed to load chat history:", error);
+  }
+
+  // Send a test message
   console.log("About to send message...");
 
   socket.emit("send-message", {
-    username: username,
+    username,
     message: "Hello from " + username + "!"
   });
 });
 
-// Simulate typing activity
+// Simulate typing activity with debouncing
 function simulateTyping() {
-  // Send "typing" only when typing starts
   if (!isTyping) {
     isTyping = true;
     socket.emit("typing");
     console.log("Started typing...");
   }
 
-  // Reset the timer every time typing activity occurs
   clearTimeout(typingTimer);
 
   typingTimer = setTimeout(() => {
@@ -65,7 +112,7 @@ function simulateTyping() {
   }, 1000);
 }
 
-// Simulate a user typing several times
+// Simulate typing several times
 setTimeout(() => simulateTyping(), 1000);
 setTimeout(() => simulateTyping(), 1500);
 setTimeout(() => simulateTyping(), 2000);

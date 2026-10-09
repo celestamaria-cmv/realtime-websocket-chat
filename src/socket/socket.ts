@@ -1,62 +1,80 @@
 import { Server } from "socket.io";
+import Message from "../models/Message";
 
 export const setupSocket = (io: Server) => {
-  const users = new Map();
+  // Store the username associated with each connected socket
+  const users = new Map<string, string>();
 
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("join-chat", (username) => {
-      console.log(`${username} joined the chat`);
-
+    // DAY 5: User joins the chat
+    socket.on("join-chat", (username: string) => {
       users.set(socket.id, username);
 
+      console.log(`${username} joined the chat`);
+
       socket.broadcast.emit("user-joined", username);
-
-      const onlineUsers = Array.from(users.values());
-
-      io.emit("online-users", onlineUsers);
     });
 
-    socket.onAny((event, ...args) => {
-      console.log("EVENT RECEIVED:", event, args);
+    // DAY 6: Send the current online-user list
+    const onlineUsers = Array.from(users.values());
+
+    socket.emit("online-users", onlineUsers);
+
+    socket.broadcast.emit("online-users", onlineUsers);
+
+    // DAY 4 + DAY 8: Receive, save, and broadcast messages
+    socket.on("send-message", async (data) => {
+      try {
+        console.log("Message received:", data);
+
+        // Step 1: Save the message to MongoDB
+        const savedMessage = await Message.create({
+          username: data.username,
+          message: data.message,
+          createdAt: new Date(),
+        });
+
+        console.log("Message saved to MongoDB:", savedMessage);
+
+        // Step 2: Broadcast the saved message to other clients
+        socket.broadcast.emit("receive-message", savedMessage);
+      } catch (error) {
+        console.error("Failed to save message:", error);
+
+        socket.emit("message-error", {
+          message: "Message could not be saved.",
+        });
+      }
     });
 
-    socket.on("send-message", (message) => {
-      console.log("Message received:", message);
-
-      socket.broadcast.emit("receive-message", message);
-    });
-
-    // Day 7: A user starts typing
+    // DAY 7: Typing indicator
     socket.on("typing", () => {
-      const username = users.get(socket.id);
-
-      socket.broadcast.emit("user-typing", username);
+      socket.broadcast.emit("typing", users.get(socket.id));
     });
 
-    // Day 7: A user stops typing
     socket.on("stop-typing", () => {
-      const username = users.get(socket.id);
-
-      socket.broadcast.emit("user-stop-typing", username);
+      socket.broadcast.emit("stop-typing", users.get(socket.id));
     });
 
+    // DAY 5 + DAY 6: User disconnects
     socket.on("disconnect", () => {
       const username = users.get(socket.id);
 
-      console.log("Disconnected socket:", socket.id);
-      console.log("Username who left:", username);
+      if (username) {
+        users.delete(socket.id);
 
-      users.delete(socket.id);
+        console.log(`${username} left the chat`);
 
-      socket.broadcast.emit("user-left", username);
+        socket.broadcast.emit("user-left", username);
+      }
 
-      const onlineUsers = Array.from(users.values());
+      const updatedOnlineUsers = Array.from(users.values());
 
-      io.emit("online-users", onlineUsers);
+      io.emit("online-users", updatedOnlineUsers);
 
-      console.log("Online users:", onlineUsers);
+      console.log("A user disconnected:", socket.id);
     });
   });
 };
