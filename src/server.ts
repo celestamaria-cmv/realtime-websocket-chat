@@ -4,15 +4,14 @@ import app from "./app";
 import { setupSocket } from "./socket/socket";
 import { connectDB } from "./config/db";
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"]
-  }
+    origin: "*",
+  },
 });
 
 setupSocket(io);
